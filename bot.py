@@ -23,6 +23,8 @@ import logging
 import os
 import random
 import string
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from io import BytesIO
 
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
@@ -189,7 +191,32 @@ async def grant_access(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     )
 
 
+class _HealthCheckHandler(BaseHTTPRequestHandler):
+    """Bare-bones HTTP handler so Render sees an open port and UptimeRobot
+    has something to ping. Has nothing to do with the bot logic itself."""
+
+    def do_GET(self):  # noqa: N802 - name required by BaseHTTPRequestHandler
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"OK")
+
+    def log_message(self, format, *args):  # noqa: A002 - silence default logging
+        pass  # keep Render's logs focused on the bot, not ping traffic
+
+
+def start_health_check_server() -> None:
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), _HealthCheckHandler)
+    logger.info("Health check server listening on port %s", port)
+    server.serve_forever()
+
+
 def main() -> None:
+    # Run the tiny HTTP server in a background thread so it doesn't block
+    # the bot's polling loop, and vice versa.
+    threading.Thread(target=start_health_check_server, daemon=True).start()
+
     application = Application.builder().token(BOT_TOKEN).build()
 
     application.add_handler(CommandHandler("start", start))

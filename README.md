@@ -34,14 +34,32 @@ person uses it, so it can't be reposted or shared).
 2. Click **New +** → **Blueprint**.
 3. Connect your GitHub account if prompted, then select the repo you
    just created. Render will read `render.yaml` automatically and
-   configure the worker for you.
+   set this up as a **Web Service** on the free tier.
 4. When asked, fill in the two environment variables:
    - `BOT_TOKEN` → the token from BotFather
    - `CHANNEL_ID` → the numeric ID (or @username) from step 2
 5. Click **Apply** / **Deploy**. Render will install dependencies and
-   start the bot.
+   start the bot. Once it's live, copy the `.onrender.com` URL Render
+   gives your service — you'll need it for step 5.
 
-## 5. Test it
+## 5. Keep it awake with UptimeRobot (free)
+Render's free Web Services fall asleep after 15 minutes with no
+traffic, and take 30-50 seconds to wake back up on the next request.
+UptimeRobot pings your service regularly so it never falls asleep.
+
+1. Go to uptimerobot.com, sign up for a free account.
+2. Click **+ Add New Monitor**.
+3. Monitor Type: **HTTP(s)**.
+4. Friendly Name: anything, e.g. "Telegram gate bot".
+5. URL: paste the `.onrender.com` URL from step 4 above.
+6. Monitoring Interval: 5 minutes (the shortest free option — well
+   under Render's 15-minute sleep window).
+7. Click **Create Monitor**.
+
+That's it — UptimeRobot will now hit your bot's health-check endpoint
+every 5 minutes, which keeps Render from putting it to sleep.
+
+## 6. Test it
 1. Open Telegram, search for your bot's username, tap **Start**.
 2. It should send you a distorted code image.
 3. Reply with the code. You should get back a one-time invite link.
@@ -49,10 +67,14 @@ person uses it, so it can't be reposted or shared).
    confirm it works — and that reusing the same link afterward fails.
 
 ## Notes
-- **Free tier behavior:** Render's free background workers can go idle
-  after periods of inactivity, so the very first message after a quiet
-  stretch might take a few extra seconds to get a reply. This is a
-  Render free-tier tradeoff, not a bug in the bot.
+- **Free tier behavior:** even with UptimeRobot pinging it, there's a
+  small chance of an occasional slow first response if a ping is
+  missed or Render has a hiccup. This is a free-tier tradeoff, not a
+  bug in the bot.
+- **The health-check server:** `bot.py` runs a tiny built-in web
+  server alongside the bot purely so Render has a port to detect and
+  UptimeRobot has something to ping. It doesn't do anything else —
+  all the actual bot logic is still the CAPTCHA + invite-link flow.
 - **Retries:** a user gets 5 attempts per CAPTCHA before the bot sends
   a fresh code automatically. You can change `MAX_ATTEMPTS_PER_ROUND`
   at the top of `bot.py` if you want that looser or stricter.
